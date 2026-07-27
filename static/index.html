@@ -8,7 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-  <style>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+<style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* hide all scrollbar tracks while keeping scroll behaviour */
@@ -440,10 +441,12 @@
       background: transparent; color: #1a1a1a;
     }
     #user-input::placeholder { color: #aaa; }
-    #input-footer { display: flex; justify-content: flex-end; }
+    #input-footer { display: flex; justify-content: flex-end; align-items: center; }
+
+.button-group { display: flex; gap: 6px; }
     #send-btn {
-      width: 34px; height: 34px;
-      border-radius: 10px; border: none;
+      width: 36px; height: 36px;
+      border-radius: 8px; border: none;
       background: #1a1a1a; color: #fff;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -1022,7 +1025,48 @@
       padding: 0;
     }
     #disclaimer-link:hover { color: #555; }
-  </style>
+  /* Base button styling */
+.icon-btn {
+  background-color: #f1f3f4;
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #444746;
+  transition: background-color 0.15s;
+}
+
+.icon-btn:hover {
+  background-color: #e8eaed;
+}
+
+/* State 1: Recording (Pulsing Red) */
+.icon-btn.recording {
+  background-color: #fce8e6;
+  color: #ea4335;
+  animation: pulse 1.5s infinite;
+}
+
+/* State 2: Processing/Loading (Spinning) */
+.icon-btn.loading .material-icons.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Keyframes for the animations */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(234, 67, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+</style>
 </head>
 <body>
 
@@ -1204,13 +1248,14 @@
     <div id="input-box">
       <textarea id="user-input" placeholder="Message CHRNS-AI…" rows="1"></textarea>
       <div id="input-footer">
-        <button id="send-btn" disabled aria-label="Send">
-          <svg id="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-               stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5"/>
-            <polyline points="5 12 12 5 19 12"/>
-          </svg>
-        </button>
+        <div class="button-group">
+          <button id="mic-btn" class="icon-btn action-button" aria-label="Toggle Microphone">
+            <span class="material-icons" id="mic-icon">mic</span>
+          </button>
+          <button id="send-btn" class="icon-btn action-button" disabled aria-label="Send">
+            <span class="material-icons">arrow_upward</span>
+          </button>
+        </div>
       </div>
     </div>
     <div id="footer-row">
@@ -1475,6 +1520,52 @@ function addPlotDownloads(plotEl, fig) {
     const inputEl     = document.getElementById('user-input');
     const sendBtn     = document.getElementById('send-btn');
     const sendIcon    = document.getElementById('send-icon');
+const micBtn      = document.getElementById('mic-btn');
+
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+micBtn.addEventListener('click', async () => {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        micBtn.classList.remove('recording');
+          micBtn.classList.add('loading');
+          micBtn.innerHTML = '<span class="material-icons spin">sync</span>'; // processing icon
+        const formData = new FormData();
+        formData.append('file', blob, 'recording.webm');
+        try {
+          const resp = await fetch('/transcribe', { method: 'POST', body: formData });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          document.getElementById('user-input').value = data.text;
+        } catch (err) {
+          alert('Transcription error: ' + err.message);
+        } finally {
+          micBtn.innerHTML = '<span class="material-icons">mic</span>'; // mic icon
+        }
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      micBtn.textContent = '🔴'; // red circle
+    } catch (err) {
+      alert('Could not access microphone');
+    }
+  } else {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    // UI will be updated in onstop
+  }
+});
     const modelSelect = document.getElementById('model-select');
 
     /* ── Multi-chat store ─────────────────────────────────────────────────

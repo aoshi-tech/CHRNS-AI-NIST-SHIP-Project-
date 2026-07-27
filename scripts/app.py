@@ -8,6 +8,9 @@ import shutil
 import sys
 import threading
 import time
+import os
+import tempfile
+from faster_whisper import WhisperModel
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -15,7 +18,7 @@ import webbrowser
 
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -390,6 +393,9 @@ def _resolve_npx():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize Whisper model globally
+    global whisper_model
+    whisper_model = WhisperModel("small", device="auto", compute_type="int8", cpu_threads=4)
     # These resources are shared across all users/requests, but none of them
     # are a credential or a per-user model choice: they're the tool set,
     # system prompt, and conversation-memory store that every caller's own
@@ -477,6 +483,9 @@ async def lifespan(app: FastAPI):
     print("Agent ready at http://127.0.0.1:8000")
     yield
 
+
+# Global Whisper model (initialized on startup)
+whisper_model: WhisperModel | None = None
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(REPO_ROOT / "static")), name="static")
@@ -627,6 +636,35 @@ def download_export(export_id: str, filename: str):
 # resolves to the exact file it found. Only these fixed roots are reachable, so
 # the proxy below can't be turned into an open SSRF relay to arbitrary URLs.
 LOGSHEET_ROOTS = _mod.LOGSHEET_ROOTS
+
+@app.post("/transcribe")
+async def transcribe(file: UploadFile = File(...)):
+    """Accept an audio/webm file, transcribe it with Faster-Whisper and return the result.
+
+    Returns JSON with the transcribed ``text``, detected ``language`` and the model's
+    ``language_probability``. The temporary file is deleted immediately after use.
+    """
+    if whisper_model is None:
+        raise HTTPException(status_code=500, detail="Whisper model not initialized.")
+    if file.content_type not in ("audio/webm", "audio/webm;codecs=opus", "audio/webm;codecs=vorbis"):
+        raise HTTPException(status_code=400, detail="Unsupported audio format. Use audio/webm.")
+    # Write to a temporary .webm file
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                tmp.write(chunk)
+            temp_path = tmp.name
+        segments, info = whisper_model.transcribe(temp_path, beam_size=5, vad_filter=True, language=None)
+        text = " ".join([seg.text for seg in segments])
+        return {"text": text.strip(), "language": info.language, "language_probability": info.language_probability}
+    finally:
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
 
 
 @app.get("/download/logsheet/{instrument}/{path:path}")
