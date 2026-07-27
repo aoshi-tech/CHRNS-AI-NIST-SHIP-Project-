@@ -1544,7 +1544,9 @@ micBtn.addEventListener('click', async () => {
           const resp = await fetch('/transcribe', { method: 'POST', body: formData });
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
-          document.getElementById('user-input').value = data.text;
+          const userInputEl = document.getElementById('user-input');
+            userInputEl.value = userInputEl.value ? userInputEl.value + ' ' + data.text : data.text;
+            userInputEl.dispatchEvent(new Event('input', { bubbles: true }));
         } catch (err) {
           alert('Transcription error: ' + err.message);
         } finally {
