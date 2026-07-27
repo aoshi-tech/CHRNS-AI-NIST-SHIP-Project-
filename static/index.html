@@ -1253,7 +1253,7 @@
             <span class="material-icons" id="mic-icon">mic</span>
           </button>
           <button id="send-btn" class="icon-btn action-button" disabled aria-label="Send">
-            <span class="material-icons">arrow_upward</span>
+            <span class="material-icons" id="send-icon">arrow_upward</span>
           </button>
         </div>
       </div>
@@ -1914,17 +1914,23 @@ micBtn.addEventListener('click', async () => {
     });
 
     /* ── send/stop button state ── */
-    const SEND_ICON = '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>';
-    const STOP_ICON = '<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/>';
+    const SEND_ICON = 'arrow_upward';
+    const STOP_ICON = 'stop';
 
     let isGenerating    = false;
     let activeController = null;
 
     function setGeneratingState(generating) {
       isGenerating = generating;
-      sendIcon.innerHTML = generating ? STOP_ICON : SEND_ICON;
+      // Update the Material‑Icons text inside the span
+      sendIcon.textContent = generating ? STOP_ICON : SEND_ICON;
+      // Ensure the button is enabled when acting as a Stop button
+      if (generating) {
+        sendBtn.removeAttribute('disabled');
+      } else {
+        sendBtn.disabled = !inputEl.value.trim();
+      }
       sendBtn.setAttribute('aria-label', generating ? 'Stop generating' : 'Send');
-      sendBtn.disabled = generating ? false : !inputEl.value.trim();
       /* lock chat switching / creation / deletion while a turn is streaming */
       document.getElementById('sidebar')?.classList.toggle('busy', generating);
     }
