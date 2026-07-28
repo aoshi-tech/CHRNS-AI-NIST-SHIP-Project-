@@ -1610,6 +1610,32 @@ def _h5_curated(entry):
         desc.setdefault(path, val)
     return desc
 
+def get_sample_status(username: str | None = None, location: str | None = None, 
+                      sample_name: str | None = None, chemical: str | None = None, 
+                      barcode: str | None = None, owner: str | None = None, 
+                      external_user: str | None = None) -> str:
+    '''
+    Gives live status of chemicals stored.
+    Username should be in email address format, and chemical should always be in a long form(instead of CsPb say Cesium Lead).
+    All parameters are optional, but one should be provided.
+    '''
+    payload = {}
+    if username:
+        payload['username'] = username
+    if location:
+        payload['location'] = location
+    if sample_name:
+        payload['sample_name'] = sample_name
+    if chemical:
+        payload['chemical'] = chemical
+    if barcode:
+        payload['barcode'] = barcode
+    if owner:
+        payload['owner'] = owner
+    if external_user:
+        payload['external_user'] = external_user
+    url = "https://www.ncnr.nist.gov/flutter/sampletracking_test/index_noauth.php/search?"
+    return requests.get(url, params=payload).text
 
 @mcp.tool()
 def inspect_raw_file(

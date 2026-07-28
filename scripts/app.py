@@ -135,6 +135,7 @@ MCP_TOOL_NAMES = [
     "inspect_raw_file",
     "search_user_by_name",
     "advanced_ldap_query",
+    "get_sample_status"
 ]
 
 # LangGraph's default recursion_limit of 25 caps an agent run at ~12
@@ -232,7 +233,7 @@ TOOL_GROUPS = {
         "inspect_raw_file", "find_experiment_logsheet",
         "search-instruments", "search-experiments", "search-datafiles",
         "search_instrument_schedule", "search_user_by_name", "advanced_ldap_query",
-        "get_schedule"
+        "get_schedule", "get_sample_status"
     },
     "reduction": {"list_reduction_templates", "reduce_files", "export_reduction"},
     "plot": {"generate_plot", "plot_reduction"},
@@ -273,7 +274,7 @@ GROUP_SIGNALS = {
         # NIST people/LDAP directory lookups (search_user_by_name / advanced_ldap_query)
         "who is", "who's", "employee", "staff", "person", "people", "ldap",
         "directory", "email", "phone", "office", "building", "division",
-        "contact", "uid", "where", "room", "status"
+        "contact", "uid", "where", "room", "status", "sample", "chemical", "where", "barcode"
     ),
     "reduction": (
         "reduce", "reduction", "template", "specular", "background",
@@ -450,6 +451,9 @@ async def lifespan(app: FastAPI):
         "returns a module graph, not specs). Quote retrieved values verbatim — digits, units, "
         "bounds, qualifiers (~, ≤, 'typical'). Never round, convert, or supply one the chunks "
         "omit; say it isn't there instead.\n"
+        "\n"
+        "SAMPLES: if you use get_sample_status, always display the imageURL if there is one, with"
+        "correct markdown syntax."
         "\n"
         "REDUCTION WORKFLOW: (1) find_raw_data_paths / list_data_files for each file's "
         "path+mtime+source. (2) get_file_intent per file if intents are needed (reuse step 1's "
