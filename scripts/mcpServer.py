@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import quote, unquote
 from ldap3 import Server, Connection, SUBTREE, ALL, NONE
 from typing import Literal
+from dotenv import load_dotenv
 
 import requests
 
@@ -1619,6 +1620,8 @@ def get_sample_status(username: str | None = None, location: str | None = None,
     Username should be in email address format, and chemical should always be in a long form(instead of CsPb say Cesium Lead).
     All parameters are optional, but one should be provided.
     '''
+    load_dotenv()
+    url = os.getenv("SAMPLE_URL")
     payload = {}
     if username:
         payload['username'] = username
@@ -1634,7 +1637,6 @@ def get_sample_status(username: str | None = None, location: str | None = None,
         payload['owner'] = owner
     if external_user:
         payload['external_user'] = external_user
-    url = "https://www.ncnr.nist.gov/flutter/sampletracking_test/index_noauth.php/search?"
     return requests.get(url, params=payload).text
 
 @mcp.tool()
@@ -1785,7 +1787,9 @@ def execute_ldap_search(search_filter: str, return_attributes: list[LdapField] |
     if not return_attributes:
         return_attributes = ['*']
 
-    server = Server('people.nist.gov', port=389, get_info=NONE, connect_timeout=5)
+    load_dotenv()
+    ldap_url = os.getenv("LDAP_URL")
+    server = Server(ldap_url, port=389, get_info=NONE, connect_timeout=5)
     conn = Connection(server, auto_bind=True, receive_timeout=5)
     
     conn.search(
