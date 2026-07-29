@@ -1,7 +1,7 @@
 ---
 doc_id: magik_nist
 source_id: MAGIK-001
-title: MAGIK Offspecular Reflectometer
+title: MAGIK — Neutron Spin Filters
 instrument: MAGIK
 workflow_stage: overview
 source_type: web_page
@@ -14,7 +14,7 @@ source_last_updated: 2026-06-12
 citation_required: false
 ---
 
-# MAGIK Offspecular Reflectometer
+# MAGIK — Neutron Spin Filters
 
 > DEPRECATION NOTICE: This page is no longer being updated and the information may be out of date.
 
@@ -47,4 +47,4 @@ For more details concerning neutron spin filters, refer to:
 * Brian B. Maranville: [contact details omitted]
 * Joseph A. Dura: [contact details omitted]
 
-<!-- Source: MAGIK | NIST (https://www.nist.gov/ncnr/neutron-instruments/spin-filters/spin-filter-instruments/magik). Removed site navigation, header/footer chrome, social media buttons, and personal contact details. -->
+<!-- Source: MAGIK | NIST (https://www.nist.gov/ncnr/neutron-instruments/spin-filters/spin-filter-instruments/magik). Removed site navigation, header/footer chrome, social media buttons, and personal contact details. Retitled from "MAGIK Offspecular Reflectometer" (a title collision with MAGIK-004) to reflect this page's actual content, which is neutron spin filters, not a general instrument overview. -->

@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import os
 
 try:
     from _common import (
@@ -27,6 +28,51 @@ except ImportError as exc:
         "Run: pip install -r requirements.txt"
     )
 DEFAULT_TOP    = 3
+
+# ---- query rewriting (optional, RChat-backed) ------------------------------
+# Same RChat OpenAI-compatible endpoint / RCHAT_API_KEY convention as
+# full_document_ingestion.py's normalization calls.
+RCHAT_BASE_URL       = "https://rchat.nist.gov/api/v1"
+DEFAULT_REWRITE_MODEL = "gemma-4-31B-it"
+
+_REWRITE_SYSTEM = (
+    "You rewrite user questions into clear search queries for a retrieval "
+    "system over NIST NCNR neutron-scattering instrument documentation "
+    "(instruments include CANDOR, VSANS, NSE, MAGIK, BT7, and shared "
+    "NICE/NCNR-wide docs). Expand abbreviations, normalize instrument and "
+    "workflow terminology, and make vague or terse questions explicit. "
+    "Reply with ONLY the rewritten query -- no explanation, no quotes."
+)
+
+
+def rewrite_query(query, *, model=DEFAULT_REWRITE_MODEL, api_key=None):
+    """Best-effort query rewrite via RChat. Returns (text, rewritten: bool).
+
+    Falls back to (query, False) whenever RCHAT_API_KEY is unset or the call
+    fails for any reason (network, bad response, etc.) -- rewriting is an
+    accuracy enhancement, not a correctness requirement, so retrieval must
+    keep working without it. Mirrors the fail-soft RChat pattern in
+    scripts/agent_memory.py's _rchat_client()/search_history()."""
+    key = api_key or os.environ.get("RCHAT_API_KEY", "").strip()
+    if not key:
+        return query, False
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=key, base_url=RCHAT_BASE_URL)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _REWRITE_SYSTEM},
+                {"role": "user", "content": query},
+            ],
+            temperature=0.0,
+        )
+        rewritten = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        return query, False
+    if not rewritten:
+        return query, False
+    return rewritten, True
 
 ACCESS_LEVEL_MAP = {
     "public":     ["public"],
@@ -142,9 +188,32 @@ def main():
         dest="access_level",
         help="Maximum access level to include (default: public)",
     )
+    parser.add_argument(
+        "--rewrite",
+        action="store_true",
+        help="Rewrite the query via RChat before embedding it (requires "
+             "RCHAT_API_KEY). Off by default.",
+    )
+    parser.add_argument(
+        "--rewrite-model",
+        default=DEFAULT_REWRITE_MODEL,
+        metavar="NAME",
+        dest="rewrite_model",
+        help=f"RChat model to use for --rewrite (default: {DEFAULT_REWRITE_MODEL})",
+    )
     args = parser.parse_args()
 
+    query = args.query
     try:
+        if args.rewrite:
+            rewritten, did_rewrite = rewrite_query(query, model=args.rewrite_model)
+            if did_rewrite:
+                print(f"Original:  {query}")
+                print(f"Rewritten: {rewritten}\n")
+                query = rewritten
+            else:
+                print("Rewrite skipped (no RCHAT_API_KEY or the call failed); using original query.\n")
+
         ensure_ollama()
         if not CHROMA_PATH.exists():
             raise RetrievalError(
@@ -162,8 +231,8 @@ def main():
             )
         print(f"Embedding query via Ollama ({EMBED_MODEL}) ...")
         print(f"Retrieving top {args.top} chunks ...")
-        kept = retrieve(    
-            args.query, pack=args.pack, top=args.top,
+        kept = retrieve(
+            query, pack=args.pack, top=args.top,
             max_distance=args.max_distance, access_level=args.access_level,
             vectorstore=vectorstore,
         )

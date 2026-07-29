@@ -31,7 +31,7 @@ Retrieval-augmented generation over the instrument documentation is **one of tho
    The web UI is bring-your-own-key — each browser session supplies its own key per provider (OpenAI / Anthropic / Google / RChat) in a modal, so a server-side key is only an optional fallback.
 2. `pip install -r requirements.txt`
 3. Install **Node.js** (which provides `npx`) — required by both front-ends at startup to launch the `@ivotoby/openapi-mcp-server` external MCP server for the NCNR metadata API. Without it, `python scripts/app.py` aborts on startup with `FileNotFoundError: [WinError 2]` (or `npx: command not found`). Get it from [nodejs.org](https://nodejs.org/), or on Windows `winget install OpenJS.NodeJS.LTS`; reopen your terminal afterward so `npx` is on `PATH`. Verify with `npx --version`.
-4. Start Ollama with `nomic-embed-text` pulled (`ollama pull nomic-embed-text`) — the RAG tool embeds queries locally. Scripts auto-start `ollama serve` if it isn't running.
+4. Start Ollama with `bge-large` pulled (`ollama pull bge-large`) — the RAG tool embeds queries locally. Scripts auto-start `ollama serve` if it isn't running.
 5. Run an agent:
    - **Web UI** — `python scripts/app.py`, then open [http://127.0.0.1:8000](http://127.0.0.1:8000). Enter your API key and pick a model in the browser; each tab gets its own conversation thread.
    - **CLI** — `python scripts/agent.py` for a terminal REPL, fixed to RChat's `gpt-oss-120b`.
@@ -55,7 +55,7 @@ Run standalone as `python scripts/mcpServer.py` (stdio transport) to use from an
 
 ### Knowledge base (RAG)
 
-- `gen_chunks` — semantic retrieval from the `ncnr_rag` Chroma vectorstore, filtered by status/access level/instrument. Runs in-process against a cached Chroma handle opened at startup. Answers *how an instrument works*.
+- `gen_chunks` — semantic retrieval from the `ncnr_rag` Chroma vectorstore, filtered by status/access level/instrument. First attempts a best-effort RChat query rewrite (clarifies terse/ambiguous questions before embedding; falls back silently to the original query if `RCHAT_API_KEY` is unset or the call fails). Runs in-process against a cached Chroma handle opened at startup. Answers *how an instrument works*.
 - `run_pipeline` — triggers the full ingestion pipeline as a subprocess.
 
 ### Finding & inspecting data
@@ -118,12 +118,12 @@ which chains normalize → chunk → validate → embed. Individual steps:
 - [`full_document_ingestion.py`](rag/scripts/full_document_ingestion.py) — converts `originals/` to normalized Markdown via the RChat API. Interactive: streams each file's output and asks you to confirm the workflow stage before writing. PDF support needs `pypdf`.
 - [`chunk_markdown.py`](rag/scripts/chunk_markdown.py) `<pack>` — stdlib-only heading-based chunker; splits `normalized/**/*.md` by H2 into `<pack>_chunks.generated.jsonl`.
 - [`validate_pack.py`](rag/scripts/validate_pack.py) `<pack>` — validates required files/dirs, JSONL syntax, chunk/metadata completeness, and cross-references chunk `source_id`s against `source_inventory.csv`. Exits non-zero on error, aborting the pipeline.
-- [`embed_and_ingest.py`](rag/scripts/embed_and_ingest.py) — embeds every pack's `chunks/*_chunks.jsonl` with `nomic-embed-text` via Ollama into the Chroma store.
+- [`embed_and_ingest.py`](rag/scripts/embed_and_ingest.py) — embeds every pack's `chunks/*_chunks.jsonl` with `bge-large` via Ollama into the Chroma store.
 - [`_common.py`](rag/scripts/_common.py) — shared helpers: pack list, Chroma bootstrap, JSONL loading, Ollama health-check/auto-start, eval CSV writer.
 
 ### Retrieval evaluation
 
-- [`gen_chunks.py`](rag/scripts/gen_chunks.py) `"<question>"` — retrieval only, no LLM call; prints the top-k matching chunks. Backs the `gen_chunks` MCP tool. Flags: `--pack`, `--top`, `--max-distance`, `--access-level`.
+- [`gen_chunks.py`](rag/scripts/gen_chunks.py) `"<question>"` — prints the top-k matching chunks. Backs the `gen_chunks` MCP tool. Flags: `--pack`, `--top`, `--max-distance`, `--access-level`, `--rewrite` (optional RChat query rewrite before embedding, off by default; requires `RCHAT_API_KEY`).
 - [`test_retrieval_embedding.py`](rag/scripts/test_retrieval_embedding.py) — runs each pack's `eval/*.jsonl` questions against Chroma; reports top-1/top-k accuracy and MRR.
 - [`evaluate_retrieval_ragas.py`](rag/scripts/evaluate_retrieval_ragas.py) — RAGAS-standard Context Precision@K and Context Recall against each eval question's `expected_sources`.
 

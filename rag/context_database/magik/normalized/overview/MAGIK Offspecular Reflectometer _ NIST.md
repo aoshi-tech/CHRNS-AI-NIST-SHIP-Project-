@@ -16,7 +16,7 @@ citation_required: false
 
 # MAGIK Offspecular Reflectometer
 
-The MAGIK reflectometer complements the Polarized Beam Reflectometer and the Horizontal-Geometry Reflectometer in providing specialized capabilities for measurements of in-plane scattering in addition to world-class depth-profiling (with specular reflectivity) of biological, battery/electrochemical, polymer, and magnetic thin films.
+MAGIK provides in-plane / off-specular scattering measurements alongside world-class depth-profiling via specular reflectivity, for biological, battery/electrochemical, polymer, and magnetic thin films (see MAGIK-005 for the full instrument overview).
 
 ## Description
 
@@ -60,4 +60,4 @@ To perform an experiment, users should apply for beamtime or contact the instrum
 * **Research:** MAGIK and AND/R Publications
 * **Data Analysis:** Online data reduction, Raw data file explorer, and SLD Calculator
 
-<!-- Source: MAGIK Offspecular Reflectometer | https://www.nist.gov/programs-projects/magik-offspecular-reflectometer. Removed site navigation, social media links, government website headers/footers, and personal contact details. -->
+<!-- Source: MAGIK Offspecular Reflectometer | https://www.nist.gov/programs-projects/magik-offspecular-reflectometer. Removed site navigation, social media links, government website headers/footers, and personal contact details. Opening paragraph paraphrased instead of quoted verbatim -- the source page repeats the same intro sentence as MAGIK-005 (MAGIK Reflectometer | NIST), which was duplicating that paragraph into two near-identical retrieval chunks; see MAGIK-005 for the canonical instrument overview. -->

@@ -19,9 +19,9 @@ PACKS = ["candor", "common", "nse", "vsans", "magik", "bt7"]
 
 CHROMA_PATH = Path(__file__).parent.parent / "chroma_db"
 COLLECTION = "ncnr_rag"
-EMBED_MODEL = "nomic-embed-text"
+EMBED_MODEL = "bge-large"
 EMBED_BASE_URL = "http://localhost:11434"
-QUERY_PREFIX = "search_query: "
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 
 def _ollama_ready(timeout: float = 0.5) -> bool:

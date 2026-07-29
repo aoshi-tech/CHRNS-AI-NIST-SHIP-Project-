@@ -85,19 +85,21 @@ def gen_chunks(input: str) -> str:
     similarity search with optional filtering by
     instrument pack, access level, and status. Returns
     the matching chunk texts (dropping any below a
-    configurable distance threshold). You MUST use 
-    this tool if the user asks HOW a specific 
+    configurable distance threshold). You MUST use
+    this tool if the user asks HOW a specific
     instrument (like CANDOR or MACS) works. Do NOT use this tool to answer questions about raw data files"""
+    query, did_rewrite = _gen_chunks.rewrite_query(input)
     try:
-        kept = _gen_chunks.retrieve(input, vectorstore=_get_vectorstore())
+        kept = _gen_chunks.retrieve(query, vectorstore=_get_vectorstore())
         body = _gen_chunks.format_chunks(kept)
     except _gen_chunks.RetrievalError as exc:
         return str(exc)
     except Exception as exc:  # noqa: BLE001 - surface retrieval failure as tool output, don't kill the run
         return f"gen_chunks failed: {type(exc).__name__}: {exc}"
 
+    rewritten_attr = f" rewritten_query={query!r}" if did_rewrite else ""
     return (
-        f"<retrieved_chunks query={input!r} source=\"NCNR RAG Chroma vectorstore\">\n"
+        f"<retrieved_chunks query={input!r}{rewritten_attr} source=\"NCNR RAG Chroma vectorstore\">\n"
         "```text\n"
         f"{body}\n"
         "```\n"

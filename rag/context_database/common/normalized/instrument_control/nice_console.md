@@ -1,6 +1,6 @@
 ---
 doc_id: nice_console
-source_id: CANDOR-005
+source_id: COMMON-015
 title: The NICE Console
 instrument: COMMON
 workflow_stage: instrument_control
@@ -13,7 +13,7 @@ last_reviewed: 2026-06-12
 source_url_or_path: https://www.nist.gov/ncnr/nice-help/nice-console
 source_last_updated: 2026-05-27
 deprecation_notice: true
-related_source_ids: COMMON-001
+related_source_ids: COMMON-001, COMMON-010
 citation_required: false
 ---
 
@@ -22,7 +22,7 @@ citation_required: false
 > DEPRECATION NOTICE: The source page carries the banner "This page is no longer being updated and the information may be out of date." Treat as deprecated/legacy and verify against current NICE documentation.
 >
 
-CANDOR, like other NCNR instruments, is operated through the NICE console; the console features described below apply to CANDOR operation even though this page itself is general NICE documentation rather than CANDOR-specific.
+All NCNR instruments are operated through the NICE console; the console features described below apply across instruments rather than being specific to any one of them.
 
 ## The Console Panel
 
@@ -50,4 +50,4 @@ Other commands take other types of arguments.
 - Sequences: https://www.nist.gov/ncnr/nice-help/sequences
 - Scripts: https://www.nist.gov/ncnr/nice-help/scripts
 
-<!-- Source: The NICE Console | NIST (https://www.nist.gov/ncnr/nice-help/nice-console). Created February 6, 2019; updated May 27, 2026. Page carries an explicit deprecation banner -> status deprecated. Captured under a CANDOR-005 filename but content is general NICE/COMMON, not CANDOR-specific. Navigation, sharing widgets, and inline UI screenshots (1.png, auto-complete.png, help_1.png) removed during normalization. An example email address in the notify illustration was replaced with a placeholder <email>. -->
+<!-- Source: The NICE Console | NIST (https://www.nist.gov/ncnr/nice-help/nice-console). Created February 6, 2019; updated May 27, 2026. Page carries an explicit deprecation banner -> status deprecated. Moved here from candor/ (was captured under a CANDOR-005 filename despite being general NICE/COMMON content, not CANDOR-specific); see COMMON-001/COMMON-010 for related NICE console docs. Navigation, sharing widgets, and inline UI screenshots (1.png, auto-complete.png, help_1.png) removed during normalization. An example email address in the notify illustration was replaced with a placeholder <email>. -->

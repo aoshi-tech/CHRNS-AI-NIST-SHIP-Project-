@@ -11,7 +11,7 @@ For what the system *is* and what each tool does, see [`README.md`](README.md). 
 | Requirement | Why | Check |
 |---|---|---|
 | **Python 3.10+** | Everything | `python --version` |
-| **Ollama** | `gen_chunks` embeds queries locally with `nomic-embed-text` | `ollama --version` |
+| **Ollama** | `gen_chunks` embeds queries locally with `bge-large` | `ollama --version` |
 | **Node.js / `npx`** | The NCNR metadata API is served through `@ivotoby/openapi-mcp-server`, launched via `npx` at agent startup | `npx --version` |
 | **An LLM API key** | RChat (NIST-hosted), or OpenAI / Anthropic / Google | see step 2 |
 | **Network access to NCNR** | Reduction, raw-file, log-sheet, and schedule tools all call live NCNR servers | — |
@@ -19,14 +19,14 @@ For what the system *is* and what each tool does, see [`README.md`](README.md). 
 Ollama needs the embedding model pulled once:
 
 ```bash
-ollama pull nomic-embed-text
+ollama pull bge-large
 ```
 
 You do not need to start `ollama serve` yourself — `rag/scripts/_common.py`'s `ensure_ollama()` starts it and pulls the model if it's missing. Pulling ahead of time just avoids a slow first run.
 
 ## 2. Getting an RChat API key
 
-RChat is NIST's internally-hosted, OpenAI-compatible LLM proxy at `https://rchat.nist.gov/api/v1`. It fronts several models (`gpt-oss-120b`, `gemma-4-31B-it`, `Llama-4-Maverick-17B-128E-Instruct-FP8`, `NVIDIA-Nemotron-3-Super-120B-A12B-FP8`) and is what the CLI agent and the ingestion pipeline use by default.
+RChat is NIST's internally-hosted, OpenAI-compatible LLM proxy at `https://rchat.nist.gov/api/v1`. It fronts several models (`gpt-oss-120b`, `gemma-4-31B-it`, `Llama-4-Maverick-17B-128E-Instruct-FP8`, `NVIDIA-Nemotron-3-Super-120B-A12B-FP8`) and is what the CLI agent, the ingestion pipeline, and the `gen_chunks` query rewriter use by default.
 
 1. Open <https://rchat.nist.gov> from a NIST-networked machine (or on VPN) and sign in with your NIST credentials.
 2. Open your account settings and find the **API keys** section.
@@ -34,7 +34,7 @@ RChat is NIST's internally-hosted, OpenAI-compatible LLM proxy at `https://rchat
 
 > The exact menu wording in the RChat UI changes from time to time; if you can't find the API-key page, or your NIST account doesn't have RChat access yet, ask the RChat/CHRNS admins rather than guessing. This repo never provisions keys — it only reads one you already have.
 
-RChat is not required. If you'd rather use a commercial provider, skip to the web UI (step 5) and enter an OpenAI, Anthropic, or Google key in the browser instead. RChat *is* required for [`scripts/agent.py`](scripts/agent.py) (hardcoded to RChat) and for the ingestion pipeline's normalization step.
+RChat is not required. If you'd rather use a commercial provider, skip to the web UI (step 5) and enter an OpenAI, Anthropic, or Google key in the browser instead. RChat *is* required for [`scripts/agent.py`](scripts/agent.py) (hardcoded to RChat) and for the ingestion pipeline's normalization step. The `gen_chunks` query rewriter also uses RChat, but it degrades gracefully — without `RCHAT_API_KEY` it just skips the rewrite and retrieves on the original query, so it's fine to leave unset.
 
 ## 3. Linking the key into the project
 
@@ -133,6 +133,12 @@ Sanity-check retrieval without an LLM in the loop:
 python rag/scripts/gen_chunks.py "How do I align the CANDOR detector?" --pack candor
 ```
 
+Add `--rewrite` to also exercise the RChat query-rewrite step (requires `RCHAT_API_KEY`); it prints the original and rewritten query before retrieving:
+
+```bash
+python rag/scripts/gen_chunks.py "candor align?" --pack candor --rewrite
+```
+
 ## 7. Developing and connecting a tool
 
 A tool is a plain Python function in [`scripts/mcpServer.py`](scripts/mcpServer.py). Writing it is the easy part; **connecting it to the agents is four hand-maintained lists, none of which are auto-discovered.** If you only do step 1, the tool exists over the MCP stdio transport and is invisible to both front-ends.
@@ -223,7 +229,7 @@ Note that importing `mcpServer` starts Ollama and opens Chroma, so a bare import
 
 ### Environment
 
-- **Ollama must be reachable or nothing retrieves.** Scripts auto-start `ollama serve` and pull `nomic-embed-text`, but a first run with no model pulled is slow and looks like a hang.
+- **Ollama must be reachable or nothing retrieves.** Scripts auto-start `ollama serve` and pull `bge-large`, but a first run with no model pulled is slow and looks like a hang.
 - **`npx` must be on PATH.** Without Node, the metadata-API MCP server fails to start at agent startup. Windows is handled (`npx.cmd`).
 - **Most tools need live NCNR network access.** Reduction, raw-file inspection, log sheets, and the schedule all hit NCNR servers; off-network they fail rather than degrade.
 - **`setup.sh` is macOS/Linux only** — bash, `python3`, and `source .venv/bin/activate`. Use the manual steps on Windows.

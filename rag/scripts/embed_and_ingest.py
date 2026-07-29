@@ -1,8 +1,8 @@
 """
-Embed normalized RAG chunks with Ollama's nomic-embed-text model and load into Chroma.
+Embed normalized RAG chunks with Ollama's bge-large model and load into Chroma.
 
 Assumptions (change at top if different):
-  - Model:   nomic-embed-text via Ollama (768-dim, cosine)
+  - Model:   bge-large via Ollama (1024-dim, cosine)
   - Ollama:  running locally, model pulled (`ollama pull nomic-embed-text`)
   - Chroma:  PersistentClient -> ./chroma_db
   - Input:   per-pack *_chunks.jsonl files, one JSON object per line
@@ -79,14 +79,16 @@ def sanitize_metadata(meta):
     return clean
 
 
-DOC_PREFIX = "search_document: "
+DOC_PREFIX = ""  # bge-large's asymmetric-instruction convention puts the retrieval
+                 # instruction only on the query side (see QUERY_PREFIX in _common.py);
+                 # documents are embedded with no instruction prefix at all, unlike
+                 # nomic-embed-text which prefixes both sides.
 
 
 def embed_text_for_doc(text, doc_id=None, section=None):
     """
     Prepend lightweight context (doc_id / section) so terse technical chunks
-    embed with semantic anchors, plus the search_document: instruction prefix
-    nomic-embed-text-v2-moe requires on the document side.
+    embed with semantic anchors.
 
     Uses doc_id rather than a "title" field -- no chunk metadata actually
     carries a title, and section names alone (e.g. "Overview", "Contacts")

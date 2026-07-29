@@ -18,7 +18,7 @@ citation_required: false
 
 > DEPRECATION NOTICE: This page is no longer being updated and the information may be out of date.
 
-As part of the modernization of the thermal neutron spectrometers, a state-of-the-art triple-axis instrument is operational at the BT-7 thermal beam port. The instrument takes full advantage of the large 16 cm diameter beam tube, with 20×20 $\text{cm}^2$ double focusing monochromators. 
+This legacy page holds detailed historical technical specifications for the BT-7 thermal triple-axis instrument (see BT7-004 for the current instrument overview). The instrument takes full advantage of the large 16 cm diameter beam tube, with 20×20 $\text{cm}^2$ double focusing monochromators. 
 
 Two monochromators are available: a pyrolytic graphite (PG) monochromator and Cu(220). The analyzer system also provides horizontal focusing capability; together, these capabilities provide signals two orders-of-magnitude larger than those available with the original thermal triple-axis instruments. The analyzer system can also be used as a crystal array coupled with a position-sensitive detector in various configurations to allow the simultaneous collection of data over a range of $(Q, E)$.
 
@@ -99,4 +99,4 @@ The current system is a horizontally focused pyrolytic graphite analyzer.
 ## Contacts
 [contact details omitted]
 
-<!-- Source: Double Focusing Thermal Triple-Axis Spectrometers (https://www.nist.gov/ncnr/double-focusing-thermal-triple-axis-spectrometers-0). Removed site navigation, social media links, and personal contact information. -->
+<!-- Source: Double Focusing Thermal Triple-Axis Spectrometers (https://www.nist.gov/ncnr/double-focusing-thermal-triple-axis-spectrometers-0). Removed site navigation, social media links, and personal contact information. Opening sentence reworded -- it verbatim duplicated BT7-004's intro; this page's unique value is the detailed historical dimensions/optics specs that follow, not the framing sentence. -->
