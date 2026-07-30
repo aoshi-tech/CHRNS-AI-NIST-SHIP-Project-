@@ -8,7 +8,6 @@ import shutil
 import sys
 import threading
 import time
-import os
 import tempfile
 from faster_whisper import WhisperModel
 from contextlib import asynccontextmanager
