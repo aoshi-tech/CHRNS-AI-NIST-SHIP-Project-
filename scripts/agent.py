@@ -39,7 +39,8 @@ MCP_TOOL_NAMES = [
     "inspect_raw_file",
     "search_user_by_name",
     "advanced_ldap_query",
-    "get_sample_status"
+    "get_sample_status",
+    "getHeliumInventory"
 ]
 
 # LangGraph's default recursion_limit of 25 caps a run at ~12 sequential tool

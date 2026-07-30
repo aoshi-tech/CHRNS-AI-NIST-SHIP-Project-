@@ -134,7 +134,8 @@ MCP_TOOL_NAMES = [
     "inspect_raw_file",
     "search_user_by_name",
     "advanced_ldap_query",
-    "get_sample_status"
+    "get_sample_status",
+    "getHeliumInventory"
 ]
 
 # LangGraph's default recursion_limit of 25 caps an agent run at ~12
@@ -232,7 +233,7 @@ TOOL_GROUPS = {
         "inspect_raw_file", "find_experiment_logsheet",
         "search-instruments", "search-experiments", "search-datafiles",
         "search_instrument_schedule", "search_user_by_name", "advanced_ldap_query",
-        "get_schedule", "get_sample_status"
+        "get_schedule", "get_sample_status", "getHeliumInventory"
     },
     "reduction": {"list_reduction_templates", "reduce_files", "export_reduction"},
     "plot": {"generate_plot", "plot_reduction"},
@@ -273,7 +274,8 @@ GROUP_SIGNALS = {
         # NIST people/LDAP directory lookups (search_user_by_name / advanced_ldap_query)
         "who is", "who's", "employee", "staff", "person", "people", "ldap",
         "directory", "email", "phone", "office", "building", "division",
-        "contact", "uid", "where", "room", "status", "sample", "chemical", "where", "barcode"
+        "contact", "uid", "where", "room", "status", "sample", "chemical", "where", 
+        "barcode", "helium"
     ),
     "reduction": (
         "reduce", "reduction", "template", "specular", "background",

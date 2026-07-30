@@ -1714,6 +1714,15 @@ def inspect_raw_file(
     # _fit_result's last-resort fallback is a dict; keep the declared list shape.
     return result if isinstance(result, list) else [result]
 
+@mcp.tool()
+def getHeliumInventory() -> str:
+    '''
+    Returns the current inventory of helium at NIST NCNR.
+    '''
+
+    return requests.get("http://helium2.ncnr.nist.gov/inventory.php").text
+
+
 LdapField = Literal[
     'givenName', 'sn', 'cn', 'mail', 'telephoneNumber', 
     'department', 'roomNumber', 'l', 'employeeType', 'employeeNumber',
