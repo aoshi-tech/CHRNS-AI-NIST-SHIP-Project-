@@ -515,6 +515,130 @@
     #model-key-btn.keys-set:hover { background: #f2f9f3; }
     #model-key-btn.keys-set .key-dot { background: #2f7d43; }
 
+    /* ── feedback button (top-right, next to the model/key button) ── */
+    #feedback-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      background: #fff;
+      border: 1px solid #e0ddd7;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    #feedback-btn:hover { background: #f0ede6; border-color: #d5cfc4; }
+    #feedback-btn svg { width: 15px; height: 15px; }
+
+    /* ── feedback modal ── */
+    #feedback-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #feedback-modal-overlay.open { display: flex; }
+    #feedback-modal {
+      position: relative;
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      width: 460px;
+      max-width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+    #feedback-modal h2 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+    #feedback-modal .modal-subtitle {
+      font-size: 12.5px;
+      color: #999;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    #feedback-modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: none;
+      border-radius: 6px;
+      color: #999;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    #feedback-modal-close:hover { background: #f0ede6; color: #444; }
+    #feedback-modal-close svg { width: 16px; height: 16px; }
+    #feedback-textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #faf9f7;
+      border: 1px solid #e0ddd7;
+      border-radius: 10px;
+      padding: 10px 12px;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+    }
+    #feedback-textarea:focus { border-color: #c9c3b8; background: #fff; }
+    #feedback-textarea::placeholder { color: #bbb; }
+    #feedback-scope-note {
+      font-size: 11.5px;
+      color: #999;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    #feedback-submit-btn {
+      width: 100%;
+      margin-top: 14px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: #1a1a1a;
+      border: none;
+      border-radius: 10px;
+      padding: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #feedback-submit-btn:hover { background: #3a3a3a; }
+    #feedback-submit-btn:disabled { background: #d8d4cd; cursor: default; }
+    #feedback-status {
+      text-align: center;
+      font-size: 12px;
+      margin-top: 10px;
+      height: 14px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #feedback-status.show { opacity: 1; }
+    #feedback-status.ok { color: #2f7d43; }
+    #feedback-status.err { color: #c0392b; }
+
     /* model select styled to match the modal's key-field inputs */
     #model-select {
       width: 100%;
@@ -952,6 +1076,114 @@
     #memory-edit-save:hover { background: #3a3a3a; }
     #memory-edit-save:disabled { opacity: 0.6; cursor: default; }
 
+    /* ── Tools button (bottom-right, floating) + tools modal ── */
+    #tools-btn {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      background: #fff;
+      border: 1px solid #e0ddd7;
+      border-radius: 20px;
+      padding: 9px 14px;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #tools-btn:hover { background: #f0ede6; border-color: #d5cfc4; }
+    #tools-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    #tools-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #tools-modal-overlay.open { display: flex; }
+    #tools-modal {
+      position: relative;
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      width: 560px;
+      max-width: 100%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    }
+    #tools-modal h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 6px;
+    }
+    #tools-modal .modal-subtitle {
+      font-size: 12px;
+      color: #8a8578;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    #tools-modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+    #tools-modal-close:hover { background: #f0ede6; color: #555; }
+    #tools-modal-close svg { width: 18px; height: 18px; }
+    #tools-list {
+      flex: 1;
+      overflow-y: auto;
+      margin: 0 -4px;
+      padding: 0 4px;
+    }
+    .tool-row {
+      padding: 10px 0;
+      border-bottom: 1px solid #ede9e3;
+    }
+    .tool-row:last-child { border-bottom: none; }
+    .tool-row-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    .tool-row-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.45;
+      margin-top: 3px;
+    }
+    #tools-list-status {
+      font-size: 13px;
+      color: #8a8578;
+      text-align: center;
+      padding: 24px 0;
+    }
+
     /* ── Disclaimer modal ── */
     #disclaimer-modal-overlay {
       display: none;
@@ -1095,15 +1327,64 @@
     </svg>
   </button>
 
+  <!-- Floating button, bottom-right: shows the list of tools the agent can use -->
+  <button id="tools-btn" aria-haspopup="dialog" aria-expanded="false" title="Show available tools">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+    Tools
+  </button>
+
+  <!-- Tools modal: lists every tool the agent can call, with a short description -->
+  <div id="tools-modal-overlay" role="presentation">
+    <div id="tools-modal" role="dialog" aria-modal="true" aria-labelledby="tools-modal-title">
+      <button id="tools-modal-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <h2 id="tools-modal-title">Available tools</h2>
+      <p class="modal-subtitle">Tools the agent can call while answering — it picks which ones to use per message.</p>
+      <div id="tools-list">
+        <div id="tools-list-status">Loading…</div>
+      </div>
+    </div>
+  </div>
+
   <div id="main">
 
   <!-- Combined model + API key status button — always visible, top of the interface -->
   <div id="model-bar">
+    <button id="feedback-btn" aria-haspopup="dialog" aria-expanded="false" title="Send feedback">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Feedback
+    </button>
     <button id="model-key-btn" class="keys-missing" aria-haspopup="dialog" aria-expanded="false">
       <span class="key-dot"></span>
       <span id="model-key-label">gpt-oss-120b</span>
       <span class="chevron-mini">▾</span>
     </button>
+  </div>
+
+  <!-- Feedback modal -->
+  <div id="feedback-modal-overlay" role="presentation">
+    <div id="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+      <button id="feedback-modal-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <h2 id="feedback-modal-title">Send feedback</h2>
+      <p class="modal-subtitle">Tell us what went right or wrong. This chat's messages, tool calls, and tool outputs are included automatically so we can see exactly what you saw.</p>
+      <textarea id="feedback-textarea" placeholder="What happened? What did you expect instead?"></textarea>
+      <div id="feedback-scope-note"></div>
+      <button id="feedback-submit-btn" type="button">Submit feedback</button>
+      <div id="feedback-status"></div>
+    </div>
   </div>
 
   <!-- Model + API key modal -->
@@ -1690,6 +1971,149 @@ micBtn.addEventListener('click', async () => {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && apiKeyModalOverlay.classList.contains('open')) closeApiKeyModal();
+    });
+
+    /* ── Feedback modal: submits free-text feedback plus the full transcript
+       (both roles, sources, and every tool call/output) of whichever chat is
+       active when the button is clicked, to POST /api/feedback. ── */
+    const feedbackBtn          = document.getElementById('feedback-btn');
+    const feedbackModalOverlay = document.getElementById('feedback-modal-overlay');
+    const feedbackModalClose   = document.getElementById('feedback-modal-close');
+    const feedbackTextarea     = document.getElementById('feedback-textarea');
+    const feedbackScopeNote    = document.getElementById('feedback-scope-note');
+    const feedbackSubmitBtn    = document.getElementById('feedback-submit-btn');
+    const feedbackStatus       = document.getElementById('feedback-status');
+
+    function openFeedbackModal() {
+      const chat = chats.find(c => c.id === activeChatId);
+      const msgCount = loadMsgs(activeChatId).length;
+      feedbackScopeNote.textContent = msgCount > 0
+        ? `Attaching “${(chat && chat.title) || 'New chat'}” (${msgCount} message${msgCount === 1 ? '' : 's'}).`
+        : 'This chat has no messages yet — only your written feedback will be sent.';
+      feedbackStatus.classList.remove('show');
+      feedbackModalOverlay.classList.add('open');
+      feedbackBtn.setAttribute('aria-expanded', 'true');
+      feedbackTextarea.focus();
+    }
+    function closeFeedbackModal() {
+      feedbackModalOverlay.classList.remove('open');
+      feedbackBtn.setAttribute('aria-expanded', 'false');
+    }
+    feedbackBtn.addEventListener('click', () => {
+      feedbackModalOverlay.classList.contains('open') ? closeFeedbackModal() : openFeedbackModal();
+    });
+    feedbackModalClose.addEventListener('click', closeFeedbackModal);
+    feedbackModalOverlay.addEventListener('click', (e) => {
+      if (e.target === feedbackModalOverlay) closeFeedbackModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && feedbackModalOverlay.classList.contains('open')) closeFeedbackModal();
+    });
+
+    let feedbackStatusTimeout = null;
+    function setFeedbackStatus(msg, kind) {
+      feedbackStatus.textContent = msg;
+      feedbackStatus.classList.remove('ok', 'err');
+      if (kind) feedbackStatus.classList.add(kind);
+      feedbackStatus.classList.add('show');
+      clearTimeout(feedbackStatusTimeout);
+      feedbackStatusTimeout = setTimeout(() => feedbackStatus.classList.remove('show'), 3000);
+    }
+
+    feedbackSubmitBtn.addEventListener('click', async () => {
+      const text = feedbackTextarea.value.trim();
+      if (!text) { setFeedbackStatus('Please write some feedback first.', 'err'); return; }
+
+      const chat = chats.find(c => c.id === activeChatId);
+      feedbackSubmitBtn.disabled = true;
+      const original = feedbackSubmitBtn.textContent;
+      feedbackSubmitBtn.textContent = 'Sending…';
+      try {
+        const resp = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            thread_id: activeChatId,
+            chat_title: (chat && chat.title) || 'New chat',
+            model: selectedModel,
+            feedback_text: text,
+            messages: loadMsgs(activeChatId),
+          }),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        setFeedbackStatus('Thanks — feedback sent.', 'ok');
+        feedbackTextarea.value = '';
+        setTimeout(closeFeedbackModal, 700);
+      } catch (err) {
+        setFeedbackStatus('Could not send feedback. Please try again.', 'err');
+      } finally {
+        feedbackSubmitBtn.disabled = false;
+        feedbackSubmitBtn.textContent = original;
+      }
+    });
+
+    /* ── Tools modal: lists every tool the agent can call, fetched once from
+       /api/tools and cached in memory for the rest of the session ── */
+    const toolsBtn          = document.getElementById('tools-btn');
+    const toolsModalOverlay = document.getElementById('tools-modal-overlay');
+    const toolsModalClose   = document.getElementById('tools-modal-close');
+    const toolsList         = document.getElementById('tools-list');
+    let toolsCache = null;
+
+    async function renderToolsList() {
+      if (!toolsCache) {
+        toolsList.innerHTML = '<div id="tools-list-status">Loading…</div>';
+        try {
+          const resp = await fetch('/api/tools');
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          toolsCache = data.tools || [];
+        } catch (err) {
+          toolsList.innerHTML = '<div id="tools-list-status">Could not load tools.</div>';
+          return;
+        }
+      }
+      toolsList.innerHTML = '';
+      if (toolsCache.length === 0) {
+        toolsList.innerHTML = '<div id="tools-list-status">No tools available.</div>';
+        return;
+      }
+      for (const tool of toolsCache) {
+        const row = document.createElement('div');
+        row.className = 'tool-row';
+        const name = document.createElement('div');
+        name.className = 'tool-row-name';
+        name.textContent = tool.name;
+        row.appendChild(name);
+        if (tool.description) {
+          const desc = document.createElement('div');
+          desc.className = 'tool-row-desc';
+          desc.textContent = tool.description;
+          row.appendChild(desc);
+        }
+        toolsList.appendChild(row);
+      }
+    }
+
+    function openToolsModal() {
+      toolsModalOverlay.classList.add('open');
+      toolsBtn.setAttribute('aria-expanded', 'true');
+      renderToolsList();
+    }
+    function closeToolsModal() {
+      toolsModalOverlay.classList.remove('open');
+      toolsBtn.setAttribute('aria-expanded', 'false');
+    }
+    toolsBtn.addEventListener('click', () => {
+      toolsModalOverlay.classList.contains('open') ? closeToolsModal() : openToolsModal();
+    });
+    toolsModalClose.addEventListener('click', closeToolsModal);
+    toolsModalOverlay.addEventListener('click', (e) => {
+      if (e.target === toolsModalOverlay) closeToolsModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && toolsModalOverlay.classList.contains('open')) closeToolsModal();
     });
 
     /* ── Disclaimer modal: blocks the app on every page load;
@@ -2461,17 +2885,19 @@ micBtn.addEventListener('click', async () => {
 
           case 'step_start': {
             const outCodeEl = addStepStart(stepsPanel, data.name, data.input);
-            stepPending[data.name] = outCodeEl;
-            steps.push({ name: data.name, outCodeEl });
+            const entry = { name: data.name, input: data.input || '', output: '', outCodeEl };
+            stepPending[data.name] = entry;
+            steps.push(entry);
             scrollBottom();
             break;
           }
 
           case 'step_end': {
-            const el = stepPending[data.name];
-            if (el) {
-              el.classList.remove('pending');
-              el.textContent = data.output || '—';
+            const entry = stepPending[data.name];
+            if (entry) {
+              entry.output = data.output || '';
+              entry.outCodeEl.classList.remove('pending');
+              entry.outCodeEl.textContent = data.output || '—';
               delete stepPending[data.name];
             }
             /* parse source citations from gen_chunks output */
@@ -2519,8 +2945,16 @@ micBtn.addEventListener('click', async () => {
             removeCursor();
             collapseReasoning();
             finalizeTurn(refs, steps, rawText, sources, metrics);
-            /* persist the completed assistant turn so it survives reloads */
-            appendMsg(sendChatId, { role: 'assistant', text: rawText, sources });
+            /* persist the completed assistant turn so it survives reloads;
+               toolSteps (name/input/output) is kept for the feedback button
+               even though renderMessages() doesn't currently replay it into
+               the Details panel. */
+            appendMsg(sendChatId, {
+              role: 'assistant',
+              text: rawText,
+              sources,
+              toolSteps: steps.map(s => ({ name: s.name, input: s.input, output: s.output })),
+            });
             setGeneratingState(false);
             activeController = null;
             inputEl.focus();

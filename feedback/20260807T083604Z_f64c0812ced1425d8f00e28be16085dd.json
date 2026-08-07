@@ -1,0 +1,47 @@
+{
+  "id": "f64c0812ced1425d8f00e28be16085dd",
+  "timestamp": "2026-08-07T08:36:04.649872+00:00",
+  "user_id": "3dd53cac-175e-4fd4-b1b3-8e70ea4aa267",
+  "thread_id": "session_cxkavb8tv2",
+  "chat_title": "where is my office",
+  "model": "gpt-oss-120b",
+  "feedback_text": "There was a wrong tool call",
+  "conversation": [
+    {
+      "role": "user",
+      "text": "where is my office"
+    },
+    {
+      "role": "assistant",
+      "text": "I’m sorry, but that information isn’t recorded.",
+      "sources": []
+    },
+    {
+      "role": "user",
+      "text": "who am i"
+    },
+    {
+      "role": "assistant",
+      "text": "You are Alan Munter.",
+      "sources": []
+    },
+    {
+      "role": "user",
+      "text": "so where is my office"
+    },
+    {
+      "role": "assistant",
+      "text": "I’m sorry, but that information isn’t recorded.",
+      "sources": []
+    },
+    {
+      "role": "user",
+      "text": "where is alan munter's office"
+    },
+    {
+      "role": "assistant",
+      "text": "I’m sorry, but that information isn’t recorded.",
+      "sources": []
+    }
+  ]
+}
