@@ -92,6 +92,33 @@ def validate_chunks(pack_dir: Path, inventory_ids: set[str]) -> list[str]:
     return errors
 
 
+def validate_eval_questions(pack_dir: Path, inventory_ids: set[str]) -> list[str]:
+    """Flag eval questions whose expected_sources no longer resolve to a real
+    source_id -- ground truth that's gone stale after a re-chunk/source-inventory
+    change, which would otherwise only surface as an unexplained drop in a
+    retrieval-eval metric."""
+    errors: list[str] = []
+    if not inventory_ids:
+        return errors
+    for path in sorted((pack_dir / 'eval').glob('*.jsonl')):
+        with path.open(encoding='utf-8') as f:
+            for i, line in enumerate(f, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # already reported by check_jsonl
+                qid = row.get('question_id', f'line {i}')
+                for source_id in row.get('expected_sources', []) or []:
+                    if source_id not in inventory_ids:
+                        errors.append(
+                            f'{path}:{i}: question {qid!r} expected_sources '
+                            f'references unknown source_id {source_id!r}'
+                        )
+    return errors
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(__doc__.strip())
@@ -118,6 +145,8 @@ def main() -> int:
         errors.extend(check_jsonl(path))
     if (pack_dir / 'chunks').exists():
         errors.extend(validate_chunks(pack_dir, inventory_ids))
+    if (pack_dir / 'eval').exists():
+        errors.extend(validate_eval_questions(pack_dir, inventory_ids))
 
     if errors:
         print('Validation failed:')

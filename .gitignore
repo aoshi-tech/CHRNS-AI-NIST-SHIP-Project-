@@ -25,6 +25,7 @@ static/generated/
 # Evaluation output
 retrieval_results.csv
 retrieval_results_*.csv
+scripts/eval/results/
 
 # OS / editor
 .DS_Store

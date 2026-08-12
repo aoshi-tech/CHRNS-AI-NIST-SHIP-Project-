@@ -104,6 +104,34 @@ def write_csv(rows: list[dict], fieldnames: list[str], csv_path: Path) -> None:
             writer.writerow({key: row.get(key, "") for key in fieldnames})
 
 
+def append_csv_rows(rows: list[dict], fieldnames: list[str], csv_path: Path) -> None:
+    """Append rows to a CSV, writing the header only if the file is new.
+    Used by the eval scripts so results accumulate run-over-run (each row
+    tagged with run_date/git_commit/embed_model) instead of overwriting the
+    previous run, so a regression after a re-chunk/re-embed shows up as a
+    diff between rows rather than requiring separately-saved baselines."""
+    is_new = not csv_path.exists()
+    with csv_path.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if is_new:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+
+def git_commit_short() -> str:
+    """Short current commit hash, or '' outside a git repo / on any failure --
+    purely informational CSV metadata, never worth failing an eval run over."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
 def open_vectorstore(*, base_url: str | None = None, recreate: bool = False):
     """Connect to the shared Chroma collection populated by embed_and_ingest.py.
     `recreate=True` drops and recreates it (used only by embed_and_ingest.py's
