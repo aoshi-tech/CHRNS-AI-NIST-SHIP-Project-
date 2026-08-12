@@ -1,130 +1,150 @@
 #!/usr/bin/env python3
-"""Evaluate embedding-based retrieval (Chroma + Ollama nomic-embed-text) against the
-same eval questions used by test_retrieval.py, for apples-to-apples comparison
-with the TF-IDF baseline.
+"""Evaluate embedding-based retrieval (Chroma + Ollama bge-large) against each
+pack's eval/*.jsonl questions: top-1/top-k/all-sources accuracy and MRR.
 
 Requires scripts/embed_and_ingest.py to have been run first (populates ./chroma_db).
 
 Usage:
   python scripts/test_retrieval_embedding.py --evaluate-all --output-csv retrieval_results_embedding.csv
   python scripts/test_retrieval_embedding.py candor --detail
+  python scripts/test_retrieval_embedding.py candor --by workflow_stage
+  python scripts/test_retrieval_embedding.py --evaluate-all --use-production-retrieval --max-distance 0.5
 """
 
 from __future__ import annotations
 
 import argparse
-import time
+import datetime
 from pathlib import Path
 
-from _common import PACKS, QUERY_PREFIX, add_eval_cli_args, load_eval_questions, load_pack_chunk_ids, open_vectorstore, write_csv
+from _common import PACKS, add_eval_cli_args, append_csv_rows, git_commit_short, open_vectorstore, write_csv
+from eval_core import evaluate_pack_questions, slice_breakdown, topk_metrics
 
 EVAL_CSV_FIELDS = [
-    "pack", "top_n", "queries", "top1_accuracy", "topk_accuracy",
-    "mrr", "avg_query_time", "total_query_time", "num_questions",
+    "run_date", "git_commit", "embed_model", "pack", "top_n", "queries",
+    "top1_accuracy", "topk_accuracy", "all_sources_accuracy", "mrr",
+    "avg_query_time", "p50_query_time", "p95_query_time", "total_query_time",
+]
+SLICE_CSV_FIELDS = [
+    "run_date", "git_commit", "pack", "slice_type", "slice_value",
+    "queries", "top1_accuracy", "topk_accuracy", "mrr",
 ]
 
 
-def evaluate_pack(pack_name: str, root: Path, vectorstore, embedder, top_n: int) -> dict[str, object]:
-    pack_dir = root / "context_database" / pack_name
-    questions = load_eval_questions(pack_dir)
-    pack_chunk_ids = load_pack_chunk_ids(pack_dir)
-    # over-fetch from the global collection, then filter down to this pack's
-    # own chunk_ids so scoping matches test_retrieval.py exactly
-    fetch_n = max(top_n * 2, 10)
+def _print_metrics(label: str, m: dict) -> None:
+    print(f"{label}: top1={m['top1_accuracy']:.3f} topk={m['topk_accuracy']:.3f} "
+          f"all_sources={m['all_sources_accuracy']:.3f} mrr={m['mrr']:.3f} "
+          f"(n={m['queries']}, p50={m['p50_query_time']*1000:.0f}ms, p95={m['p95_query_time']*1000:.0f}ms)")
 
-    metrics = {"queries": 0, "top1_hits": 0, "topk_hits": 0, "mrr": 0.0, "total_query_time": 0.0, "details": []}
 
-    for question in questions:
-        query_text = question.get("question", "")
-        expected_sources = set(question.get("expected_sources", []))
-
-        start = time.perf_counter()
-        query_vec = embedder.embed_query(QUERY_PREFIX + query_text)
-        docs = vectorstore.similarity_search_by_vector(query_vec, k=fetch_n)
-        # chunk_id is carried in metadata (set by embed_and_ingest.py) since
-        # LangChain Document objects don't reliably expose the Chroma id itself.
-        filtered_metas = [d.metadata for d in docs if d.metadata.get("chunk_id") in pack_chunk_ids][:top_n]
-        elapsed = time.perf_counter() - start
-
-        retrieved_source_ids = [m.get("source_id") for m in filtered_metas]
-
-        metrics["queries"] += 1
-        metrics["total_query_time"] += elapsed
-
-        hit_rank = 0
-        for rank, sid in enumerate(retrieved_source_ids, start=1):
-            if sid in expected_sources:
-                hit_rank = rank
-                break
-
-        if hit_rank:
-            metrics["topk_hits"] += 1
-            if hit_rank == 1:
-                metrics["top1_hits"] += 1
-            metrics["mrr"] += 1.0 / hit_rank
-
-        metrics["details"].append({
-            "question_id": question.get("question_id"),
-            "query": query_text,
-            "expected_sources": list(expected_sources),
-            "top_hit_rank": hit_rank,
-            "retrieved_source_ids": retrieved_source_ids,
-            "elapsed_seconds": elapsed,
+def _slice_rows(pack_name: str, details: list, slice_type: str, run_date: str, commit: str) -> list[dict]:
+    rows = []
+    for value, group in sorted(slice_breakdown(details, slice_type).items()):
+        m = topk_metrics(group)
+        rows.append({
+            "run_date": run_date, "git_commit": commit, "pack": pack_name,
+            "slice_type": slice_type, "slice_value": value, "queries": m["queries"],
+            "top1_accuracy": m["top1_accuracy"], "topk_accuracy": m["topk_accuracy"], "mrr": m["mrr"],
         })
-
-    q = metrics["queries"]
-    metrics["accuracy_topk"] = metrics["topk_hits"] / q if q else 0.0
-    metrics["accuracy_top1"] = metrics["top1_hits"] / q if q else 0.0
-    metrics["mrr"] = metrics["mrr"] / q if q else 0.0
-    metrics["avg_query_time"] = metrics["total_query_time"] / q if q else 0.0
-    return metrics
+    return rows
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate embedding-based retrieval against pack eval questions.")
     add_eval_cli_args(parser, "retrieval_results_embedding.csv")
+    parser.add_argument("--by", choices=["workflow_stage", "software"], default=None,
+                         help="Print a breakdown by expected_workflow_stage or expected_software instead of one aggregate.")
+    parser.add_argument("--slices-csv", default=None,
+                         help="CSV path for per-slice breakdown rows (default: <output-csv stem>_slices.csv; written whenever --evaluate-all is used).")
+    parser.add_argument("--overwrite-csv", action="store_true",
+                         help="Overwrite the output CSV instead of appending a new run's rows to it.")
+    parser.add_argument("--use-production-retrieval", action="store_true", dest="use_prod",
+                         help="Exercise gen_chunks.retrieve() (the real path mcpServer.py calls) instead of a "
+                              "hand-rolled fetch/filter, so max-distance/access-level behavior is measured too.")
+    parser.add_argument("--max-distance", type=float, default=0.5, dest="max_distance",
+                         help="Only used with --use-production-retrieval (default: 0.5).")
+    parser.add_argument("--access-level", default="public", dest="access_level",
+                         choices=["public", "internal", "restricted"],
+                         help="Only used with --use-production-retrieval (default: public).")
     args = parser.parse_args()
 
     root = Path.cwd()
     vectorstore, embedder = open_vectorstore()
 
+    retrieve_fn = None
+    if args.use_prod:
+        from gen_chunks import retrieve as retrieve_fn  # noqa: F811 (deliberate shadow)
+
+    run_date = datetime.date.today().isoformat()
+    commit = git_commit_short()
+
+    def run_pack(pack_name: str) -> list[dict]:
+        return evaluate_pack_questions(
+            pack_name, root, vectorstore, embedder, args.top,
+            retrieve_fn=retrieve_fn, max_distance=args.max_distance, access_level=args.access_level,
+        )
+
     if args.evaluate_all:
-        rows = []
+        rows, slice_rows = [], []
         for pack_name in PACKS:
-            metrics = evaluate_pack(pack_name, root, vectorstore, embedder, args.top)
+            details = run_pack(pack_name)
+            if not details:
+                print(f"{pack_name}: no eval questions — skipped")
+                continue
+            m = topk_metrics(details)
             rows.append({
-                "pack": pack_name,
-                "top_n": args.top,
-                "queries": metrics["queries"],
-                "top1_accuracy": metrics["accuracy_top1"],
-                "topk_accuracy": metrics["accuracy_topk"],
-                "mrr": metrics["mrr"],
-                "avg_query_time": metrics["avg_query_time"],
-                "total_query_time": metrics["total_query_time"],
-                "num_questions": metrics["queries"],
+                "run_date": run_date, "git_commit": commit, "embed_model": "bge-large",
+                "pack": pack_name, "top_n": args.top, "queries": m["queries"],
+                "top1_accuracy": m["top1_accuracy"], "topk_accuracy": m["topk_accuracy"],
+                "all_sources_accuracy": m["all_sources_accuracy"], "mrr": m["mrr"],
+                "avg_query_time": m["avg_query_time"], "p50_query_time": m["p50_query_time"],
+                "p95_query_time": m["p95_query_time"], "total_query_time": m["total_query_time"],
             })
-            print(f"{pack_name}: top1={metrics['accuracy_top1']:.3f} top{args.top}={metrics['accuracy_topk']:.3f} mrr={metrics['mrr']:.3f}")
-        write_csv(rows, EVAL_CSV_FIELDS, Path(args.output_csv))
-        print(f"Wrote {args.output_csv}")
+            slice_rows += _slice_rows(pack_name, details, "expected_workflow_stage", run_date, commit)
+            slice_rows += _slice_rows(pack_name, details, "expected_software", run_date, commit)
+            _print_metrics(pack_name, m)
+
+        writer = write_csv if args.overwrite_csv else append_csv_rows
+        writer(rows, EVAL_CSV_FIELDS, Path(args.output_csv))
+        print(f"{'Wrote' if args.overwrite_csv else 'Appended'} {args.output_csv}")
+
+        slices_csv = Path(args.slices_csv) if args.slices_csv else Path(args.output_csv).with_name(Path(args.output_csv).stem + "_slices.csv")
+        writer(slice_rows, SLICE_CSV_FIELDS, slices_csv)
+        print(f"{'Wrote' if args.overwrite_csv else 'Appended'} {slices_csv}")
         return 0
 
     if not args.pack:
         print("ERROR: pack is required unless --evaluate-all is used.")
         return 2
 
-    metrics = evaluate_pack(args.pack, root, vectorstore, embedder, args.top)
+    details = run_pack(args.pack)
+    if not details:
+        print(f"{args.pack}: no eval questions found.")
+        return 0
+    m = topk_metrics(details)
     print(f"Evaluation results for top {args.top}")
-    print(f"  queries: {metrics['queries']}")
-    print(f"  top-1 accuracy: {metrics['accuracy_top1']:.3f}")
-    print(f"  top-{args.top} accuracy: {metrics['accuracy_topk']:.3f}")
-    print(f"  mean reciprocal rank: {metrics['mrr']:.3f}")
+    print(f"  queries: {m['queries']}")
+    print(f"  top-1 accuracy: {m['top1_accuracy']:.3f}")
+    print(f"  top-{args.top} accuracy: {m['topk_accuracy']:.3f}")
+    print(f"  all-sources accuracy: {m['all_sources_accuracy']:.3f}")
+    print(f"  mean reciprocal rank: {m['mrr']:.3f}")
+    print(f"  query time avg/p50/p95: {m['avg_query_time']*1000:.0f}/{m['p50_query_time']*1000:.0f}/{m['p95_query_time']*1000:.0f} ms")
+
+    if args.by:
+        slice_key = "expected_workflow_stage" if args.by == "workflow_stage" else "expected_software"
+        print("-" * 80)
+        for value, group in sorted(slice_breakdown(details, slice_key).items()):
+            gm = topk_metrics(group)
+            print(f"  [{value}] n={gm['queries']} top1={gm['top1_accuracy']:.3f} topk={gm['topk_accuracy']:.3f} mrr={gm['mrr']:.3f}")
+
     if args.detail:
         print("-" * 80)
-        for d in metrics["details"]:
+        for d in details:
             print(f"question_id: {d['question_id']}")
             print(f"  query: {d['query']}")
+            print(f"  workflow_stage: {d['expected_workflow_stage']}  software: {d['expected_software']}")
             print(f"  expected_sources: {d['expected_sources']}")
-            print(f"  top_hit_rank: {d['top_hit_rank']}")
+            print(f"  top_hit_rank: {d['hit_rank']}  all_hit: {d['all_hit']}")
             print(f"  retrieved_source_ids: {d['retrieved_source_ids']}")
             print("-" * 80)
     return 0

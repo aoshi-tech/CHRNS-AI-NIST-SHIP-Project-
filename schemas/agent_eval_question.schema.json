@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Evaluation Question",
+  "description": "A question for scripts/eval_agent.py, which drives the full scripts/app.py chat agent (LLM + MCP tools) end-to-end, unlike schemas/eval_question.schema.json which only checks retrieval.",
+  "type": "object",
+  "required": ["question_id", "category", "question"],
+  "properties": {
+    "question_id": {"type": "string"},
+    "category": {
+      "type": "string",
+      "description": "Groups rows in the eval report; conventionally one of app.py's TOOL_GROUPS names (knowledge_base, search, reduction, plot) plus admin-adjacent lookups, but any label works."
+    },
+    "question": {"type": "string"},
+    "expected_tools": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "MCP tool names (from mcpServer.py) the agent should call while answering. Order-independent; graded as a subset check (all of these must appear among the tools actually called)."
+    },
+    "answer_should_include": {"type": "array", "items": {"type": "string"}},
+    "answer_should_not_include": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "string"}
+  }
+}
