@@ -1621,9 +1621,10 @@ def get_sample_status(username: str | None = None, location: str | None = None,
     '''
     Gives live status of chemicals stored.
     Username should be in email address format, and chemical should always be in a long form(instead of CsPb say Cesium Lead).
-    All parameters are optional, but one should be provided.
+    All parameters are optional, but if there are none to put just set the limit parameter
     '''
     load_dotenv()
+
     url = os.getenv("SAMPLE_URL")
     payload = {}
     if username:
