@@ -69,6 +69,56 @@ MCP_SERVER = REPO_ROOT / "scripts" / "mcpServer.py"
 # writes into a shared file.
 FEEDBACK_DIR = REPO_ROOT / "feedback"
 
+# Usage logging: one JSON file per *chat* (keyed by thread_id, not per
+# message), recording who's chatting, which model(s), token counts, and which
+# tools ran on each turn. Nested under feedback/ so all operator-facing
+# usage/quality signal lives in one place; gitignored since it's a high-volume
+# runtime artifact rather than a curated review artifact.
+USAGE_LOG_DIR = FEEDBACK_DIR / "logs"
+
+# Each chat's file is read-modify-written on every turn, so concurrent
+# requests on the *same* thread_id (e.g. a double-submit) need a lock to avoid
+# one turn's append clobbering another's. Different threads never contend --
+# each has its own file -- so a lock per thread_id (not a single global lock)
+# is enough.
+_usage_log_locks: dict[str, threading.Lock] = {}
+_usage_log_locks_guard = threading.Lock()
+
+
+def _usage_log_lock(thread_id: str) -> threading.Lock:
+    with _usage_log_locks_guard:
+        return _usage_log_locks.setdefault(thread_id, threading.Lock())
+
+
+def _usage_log_path(thread_id: str) -> Path:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (thread_id or "unknown"))
+    return USAGE_LOG_DIR / f"{safe}.json"
+
+
+def _append_usage_log(thread_id: str, user_id: str, turn: dict) -> None:
+    """Append one turn's usage record to this chat's single log file,
+    creating it on the first turn and updating running totals on every one."""
+    USAGE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    path = _usage_log_path(thread_id)
+    with _usage_log_lock(thread_id):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError):
+            doc = {
+                "thread_id": thread_id,
+                "user_id": user_id,
+                "created": datetime.now(timezone.utc).isoformat(),
+                "turns": [],
+            }
+        doc["user_id"] = user_id
+        doc["turns"].append(turn)
+        doc["turn_count"] = len(doc["turns"])
+        doc["tokens_in_total"] = sum(t.get("tokens_in", 0) for t in doc["turns"])
+        doc["tokens_out_total"] = sum(t.get("tokens_out", 0) for t in doc["turns"])
+        doc["tokens_total"] = doc["tokens_in_total"] + doc["tokens_out_total"]
+        doc["updated"] = datetime.now(timezone.utc).isoformat()
+        path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
 _spec = importlib.util.spec_from_file_location("mcpServer", MCP_SERVER)
 _mod = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
 sys.modules["mcpServer"] = _mod
@@ -1045,12 +1095,28 @@ async def chat(req: ChatRequest):
     # ainvoke gives no per-step events, so log a coarse breakdown: wall time and
     # how many model calls (AIMessages) vs tool results the loop went through.
     msgs = result["messages"]
-    n_ai = sum(1 for m in msgs if getattr(m, "type", "") == "ai")
-    n_tool = sum(1 for m in msgs if getattr(m, "type", "") == "tool")
+    ai_msgs = [m for m in msgs if getattr(m, "type", "") == "ai"]
+    tool_msgs = [m for m in msgs if getattr(m, "type", "") == "tool"]
+    n_ai = len(ai_msgs)
+    n_tool = len(tool_msgs)
+    wall_s = time.perf_counter() - t0
     timing_logger.info(
         "turn thread=%s model=%s wall=%.2fs | %d model calls, %d tool results",
-        req.thread_id, req.model, time.perf_counter() - t0, n_ai, n_tool,
+        req.thread_id, req.model, wall_s, n_ai, n_tool,
     )
+    tokens_in = sum((getattr(m, "usage_metadata", None) or {}).get("input_tokens") or 0 for m in ai_msgs)
+    tokens_out = sum((getattr(m, "usage_metadata", None) or {}).get("output_tokens") or 0 for m in ai_msgs)
+    await asyncio.to_thread(_append_usage_log, req.thread_id, req.user_id, {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": req.model,
+        "wall_s": round(wall_s, 3),
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "tokens_total": tokens_in + tokens_out,
+        "model_calls": n_ai,
+        "tool_calls": n_tool,
+        "tools_called": [getattr(m, "name", "?") for m in tool_msgs],
+    })
     final_msg = msgs[-1]
     content = final_msg.content
     if isinstance(content, list):
@@ -1094,9 +1160,10 @@ class _TurnMetrics:
     from a model call's start to its first streamed chunk (tool-call chunks
     included) -- i.e. the prefill/queue cost before any output appears."""
 
-    def __init__(self, model: str, thread_id: str):
+    def __init__(self, model: str, thread_id: str, user_id: str = "anonymous"):
         self.model = model
         self.thread_id = thread_id
+        self.user_id = user_id
         self.t0 = time.perf_counter()
         self._model_start: dict = {}   # run_id -> perf_counter at model start
         self._model_ttft: dict = {}    # run_id -> seconds to first chunk
@@ -1137,6 +1204,8 @@ class _TurnMetrics:
     def summary(self) -> dict:
         sum_model = round(sum(c["total_s"] for c in self.model_calls), 3)
         sum_tool = round(sum(t["total_s"] for t in self.tools if t["total_s"]), 3)
+        tokens_in = sum(c["in_tokens"] or 0 for c in self.model_calls)
+        tokens_out = sum(c["out_tokens"] or 0 for c in self.model_calls)
         return {
             "type": "metrics",
             "model": self.model,
@@ -1145,6 +1214,10 @@ class _TurnMetrics:
             "sum_model_s": sum_model,
             "tool_calls": len(self.tools),
             "sum_tool_s": sum_tool,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "tokens_total": tokens_in + tokens_out,
+            "tools_called": [t["name"] for t in self.tools],
             "model_call_detail": self.model_calls,
             "tool_detail": self.tools,
         }
@@ -1168,6 +1241,24 @@ class _TurnMetrics:
         )
         return s
 
+    def usage_log_entry(self) -> dict:
+        """One turn record to append to this chat's USAGE_LOG_DIR file: which
+        model, tokens spent, and which tools ran."""
+        s = self.summary()
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "model": s["model"],
+            "wall_s": s["wall_s"],
+            "tokens_in": s["tokens_in"],
+            "tokens_out": s["tokens_out"],
+            "tokens_total": s["tokens_total"],
+            "model_calls": s["model_calls"],
+            "tool_calls": s["tool_calls"],
+            "tools_called": s["tools_called"],
+            "model_call_detail": s["model_call_detail"],
+            "tool_detail": s["tool_detail"],
+        }
+
 
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest, request: Request):
@@ -1181,7 +1272,7 @@ async def chat_stream(req: ChatRequest, request: Request):
             "configurable": {"thread_id": req.thread_id},
             "recursion_limit": AGENT_RECURSION_LIMIT,
         }
-        metrics = _TurnMetrics(req.model, req.thread_id)
+        metrics = _TurnMetrics(req.model, req.thread_id, req.user_id)
         answer_parts: list[str] = []  # accumulate the reply for post-turn memory
 
         def emit(obj: dict) -> str:
@@ -1250,10 +1341,12 @@ async def chat_stream(req: ChatRequest, request: Request):
                 req.user_id, req.thread_id, req.message, "".join(answer_parts), app.state.memory
             )
             yield emit(metrics.log())
+            await asyncio.to_thread(_append_usage_log, req.thread_id, req.user_id, metrics.usage_log_entry())
             yield emit({"type": "done"})
 
         except Exception as exc:
             metrics.log()
+            await asyncio.to_thread(_append_usage_log, req.thread_id, req.user_id, metrics.usage_log_entry())
             yield emit({"type": "error", "text": str(exc)})
             yield emit({"type": "done"})
 

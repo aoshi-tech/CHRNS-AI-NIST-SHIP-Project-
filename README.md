@@ -49,6 +49,11 @@ Both front-ends share the same MCP tool set, system prompt, and `MemorySaver`-ba
 
 > **Adding a tool:** neither front-end auto-discovers tools. Each builds its LangChain tool set from a hand-maintained `MCP_TOOL_NAMES` allowlist, so a new `@mcp.tool` must be added to that list in **both** [`app.py`](scripts/app.py) and [`agent.py`](scripts/agent.py) (the lists are maintained separately and are not identical). For `app.py`, also add it to the right `TOOL_GROUPS` bucket. Return a `dict` or `str`, never a bare `list` — langchain-core passes a returned list through as message-content blocks un-stringified, which the OpenAI/RChat API rejects. See [`CLAUDE.md`](CLAUDE.md) for the full rationale.
 
+### Feedback & usage logs ([`feedback/`](feedback/))
+
+- **User feedback** — the web UI's feedback button posts to `/api/feedback`, which writes one JSON file per submission (`<timestamp>_<id>.json`) with the feedback text and the full conversation transcript. Committed to the repo as a human-reviewable artifact.
+- **Usage logs** ([`feedback/logs/`](feedback/logs/), gitignored) — every chat turn, in both front-ends, appends a record to one JSON file per **chat** (named after its `thread_id`, not one file per message): timestamp, model, wall time, input/output token counts, and which tools were called. The file accumulates a `turns` list plus running totals (`turn_count`, `tokens_in_total`, `tokens_out_total`, `tokens_total`) as the conversation continues. `app.py` guards concurrent writes to the same thread with a per-`thread_id` lock; `agent.py`'s REPL is single-threaded so none is needed.
+
 ## MCP tools ([`scripts/mcpServer.py`](scripts/mcpServer.py))
 
 Run standalone as `python scripts/mcpServer.py` (stdio transport) to use from any MCP client, or let [`app.py`](scripts/app.py) / [`agent.py`](scripts/agent.py) load the same functions in-process.

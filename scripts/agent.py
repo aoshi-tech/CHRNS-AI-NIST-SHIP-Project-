@@ -1,8 +1,11 @@
 ﻿import asyncio
 import functools
 import importlib.util
+import json
 import os
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -15,6 +18,42 @@ load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MCP_SERVER = REPO_ROOT / "scripts" / "mcpServer.py"
+
+# Same one-file-per-chat usage log as app.py's /chat and /chat/stream (keyed
+# by thread_id, not per message): who asked (the local OS user, since this
+# CLI has no login), which model, token counts, and which tools ran on each
+# turn. Nested under feedback/ alongside app.py's log. The REPL loop below is
+# strictly sequential (one turn completes before the next begins), so unlike
+# app.py's concurrent requests, no lock is needed around the read-modify-write.
+USAGE_LOG_DIR = REPO_ROOT / "feedback" / "logs"
+CLI_USER_ID = f"cli:{os.environ.get('USERNAME') or os.environ.get('USER') or 'anonymous'}"
+
+
+def _usage_log_path(thread_id: str) -> Path:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (thread_id or "unknown"))
+    return USAGE_LOG_DIR / f"{safe}.json"
+
+
+def _append_usage_log(thread_id: str, user_id: str, turn: dict) -> None:
+    USAGE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    path = _usage_log_path(thread_id)
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        doc = {
+            "thread_id": thread_id,
+            "user_id": user_id,
+            "created": datetime.now(timezone.utc).isoformat(),
+            "turns": [],
+        }
+    doc["user_id"] = user_id
+    doc["turns"].append(turn)
+    doc["turn_count"] = len(doc["turns"])
+    doc["tokens_in_total"] = sum(t.get("tokens_in", 0) for t in doc["turns"])
+    doc["tokens_out_total"] = sum(t.get("tokens_out", 0) for t in doc["turns"])
+    doc["tokens_total"] = doc["tokens_in_total"] + doc["tokens_out_total"]
+    doc["updated"] = datetime.now(timezone.utc).isoformat()
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
 
 _spec = importlib.util.spec_from_file_location("mcpServer", MCP_SERVER)
 _mod = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
@@ -180,6 +219,8 @@ async def run_agent():
 
         print("\nThinking...")
 
+        t0 = time.perf_counter()
+        ai_msgs, tool_msgs = [], []
         async for chunk in agent_executor.astream(
             {"messages": [("user", user_query)]},
             config=config,
@@ -190,7 +231,26 @@ async def run_agent():
                 if "messages" in node_data:
                     for msg in node_data["messages"]:
                         msg.pretty_print()
-                        
+                        msg_type = getattr(msg, "type", "")
+                        if msg_type == "ai":
+                            ai_msgs.append(msg)
+                        elif msg_type == "tool":
+                            tool_msgs.append(msg)
+
+        tokens_in = sum((getattr(m, "usage_metadata", None) or {}).get("input_tokens") or 0 for m in ai_msgs)
+        tokens_out = sum((getattr(m, "usage_metadata", None) or {}).get("output_tokens") or 0 for m in ai_msgs)
+        _append_usage_log(config["configurable"]["thread_id"], CLI_USER_ID, {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "model": rchat_model,
+            "wall_s": round(time.perf_counter() - t0, 3),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "tokens_total": tokens_in + tokens_out,
+            "model_calls": len(ai_msgs),
+            "tool_calls": len(tool_msgs),
+            "tools_called": [getattr(m, "name", "?") for m in tool_msgs],
+        })
+
 
 if __name__ == "__main__":
     asyncio.run(run_agent())
