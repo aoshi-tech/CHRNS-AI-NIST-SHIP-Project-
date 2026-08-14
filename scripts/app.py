@@ -152,9 +152,15 @@ MCP_TOOL_NAMES = [
 # detail -- where this list needs one plain-English line per tool. Keep in
 # sync with MCP_TOOL_NAMES; a tool missing here just shows no description.
 TOOL_DESCRIPTIONS = {
-    "run_pipeline": "Runs the RAG ingestion pipeline (normalize, chunk, validate, embed) to rebuild the knowledge base.",
     "gen_chunks": "Searches the NCNR knowledge base for documentation relevant to a question.",
     "get_schedule": "Looks up the experiment schedule for an NCNR instrument over a date range.",
+    "search_instrument_schedule": "Looks up historical experiment schedules for SANS/USANS instruments.",
+    "inspect_raw_file": "Reads free-text descriptions and metadata from inside a raw NeXus/HDF5 file.",
+    "search_user_by_name": "Searches the NIST staff directory (LDAP) by name.",
+    "advanced_ldap_query": "Runs a raw LDAP query against the NIST staff directory.",
+    "get_sample_status": "Looks up the live status and location of a stored chemical sample.",
+    "find_experiment_logsheet": "Finds experiment log-sheet PDFs for NG7/NGB30 SANS instruments.",
+    "getHeliumInventory": "Returns the current NIST NCNR helium inventory.",
     "generate_plot": "Builds a custom Plotly chart from ad-hoc x/y data supplied in the conversation.",
     "plot_reduction": "Reduces raw files with a template and plots the resulting curve.",
     "list_instruments": "Lists the reductus instruments available for data reduction.",
@@ -162,17 +168,11 @@ TOOL_DESCRIPTIONS = {
     "list_datasources": "Lists the configured reductus data sources.",
     "list_data_files": "Browses files and subdirectories within a reductus data source.",
     "find_raw_data_paths": "Finds an NCNR experiment's raw data files by experiment ID.",
-    "find_experiment_logsheet": "Finds experiment log-sheet PDFs for NG7/NGB30 SANS instruments.",
     "list_reduction_templates": "Lists the standard reduction templates available for an instrument.",
     "reduce_files": "Reduces raw data files using an instrument's reduction template.",
     "export_reduction": "Exports a reduced dataset to a downloadable ORSO file.",
     "get_file_intent": "Determines a raw data file's measurement intent (e.g. specular, background).",
-    "search_instrument_schedule": "Looks up historical experiment schedules for SANS/USANS instruments.",
-    "inspect_raw_file": "Reads free-text descriptions and metadata from inside a raw NeXus/HDF5 file.",
-    "search_user_by_name": "Searches the NIST staff directory (LDAP) by name.",
-    "advanced_ldap_query": "Runs a raw LDAP query against the NIST staff directory.",
-    "get_sample_status": "Looks up the live status and location of a stored chemical sample.",
-    "getHeliumInventory": "Returns the current NIST NCNR helium inventory.",
+    "run_pipeline": "Runs the RAG ingestion pipeline (normalize, chunk, validate, embed) to rebuild the knowledge base.",
 }
 
 # LangGraph's default recursion_limit of 25 caps an agent run at ~12
