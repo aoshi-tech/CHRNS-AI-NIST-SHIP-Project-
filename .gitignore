@@ -27,6 +27,11 @@ retrieval_results.csv
 retrieval_results_*.csv
 scripts/eval/results/
 
+# Per-chat usage logs (tokens + tools called) written by app.py/agent.py.
+# High-volume runtime artifact, unlike the curated feedback/*.json files.
+feedback/logs/*
+!feedback/logs/.gitkeep
+
 # OS / editor
 .DS_Store
 Thumbs.db
