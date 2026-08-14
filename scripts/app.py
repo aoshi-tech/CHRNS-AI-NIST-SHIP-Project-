@@ -173,9 +173,15 @@ def _provider_for_model(model: str) -> str:
 
 
 MCP_TOOL_NAMES = [
-    "run_pipeline",
     "gen_chunks",
     "get_schedule",
+    "search_instrument_schedule",
+    "inspect_raw_file",
+    "search_user_by_name",
+    "advanced_ldap_query",
+    "get_sample_status",
+    "find_experiment_logsheet",
+    "getHeliumInventory",
     "generate_plot",
     "plot_reduction",
     "list_instruments",
@@ -183,17 +189,11 @@ MCP_TOOL_NAMES = [
     "list_datasources",
     "list_data_files",
     "find_raw_data_paths",
-    "find_experiment_logsheet",
     "list_reduction_templates",
     "reduce_files",
     "export_reduction",
     "get_file_intent",
-    "search_instrument_schedule",
-    "inspect_raw_file",
-    "search_user_by_name",
-    "advanced_ldap_query",
-    "get_sample_status",
-    "getHeliumInventory"
+    "run_pipeline",
 ]
 
 # Short, human-facing descriptions for the "available tools" panel in the UI.
